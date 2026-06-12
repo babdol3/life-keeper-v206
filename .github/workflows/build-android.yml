@@ -1,0 +1,65 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build LifeKeeper Debug APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Verify project layout
+        shell: bash
+        run: |
+          echo "Repository root:"
+          pwd
+          ls -la
+          test -f settings.gradle
+          test -f build.gradle
+          test -f gradle.properties
+          test -d app/src/main
+          echo "gradle.properties:"
+          cat gradle.properties
+          echo "app/build.gradle:"
+          sed -n '1,120p' app/build.gradle
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Set up Gradle 8.11.1
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.11.1
+
+      - name: Build debug APK
+        shell: bash
+        run: |
+          set -o pipefail
+          gradle clean assembleDebug --no-daemon --stacktrace --info 2>&1 | tee build-log.txt
+
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: LifeKeeper-build-log
+          path: build-log.txt
+
+      - name: Upload APK
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: LifeKeeper-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
